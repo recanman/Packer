@@ -25,6 +25,7 @@ tokio = { version = "1.21.2", features = ["full"] }
 toml = "0.5.9"
 wry = { version = "0.22", features = ["transparent", "dox", "protocol"], default-features = false }
 zip = "0.6.3"
+md5 = "0.7.0"
 
 [features]
 devtools = ["wry/devtools"]

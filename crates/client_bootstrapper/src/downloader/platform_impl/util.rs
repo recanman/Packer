@@ -10,10 +10,12 @@ use std::{
 use anyhow::{bail, Context};
 use futures::future;
 use reqwest::{
-    header::{HeaderValue, CONTENT_LENGTH, RANGE},
+    header::{HeaderValue, CONTENT_LENGTH, RANGE, ETAG},
     Client, StatusCode,
 };
 use zip::ZipArchive;
+
+use md5;
 
 /// Download a client files and write them to path asynchronously.
 pub async fn download_file(
@@ -31,6 +33,15 @@ pub async fn download_file(
         .send()
         .await
         .context(format!("Failed to make HEAD reqwest to {url}"))?;
+    
+    let file_hash = response
+        .headers()
+        .get(ETAG)
+        .context("HEAD response did not include content length")?
+        .to_str()
+        .context("Failed to convert etag to string slice")?;
+    
+    log::debug!("MD5 hash for {url}: {file_hash}");
 
     let content_length = response
         .headers()
@@ -69,6 +80,22 @@ pub async fn download_file(
     let mut file_bytes = Vec::new();
     for mut chunk in downloaded_chunks {
         file_bytes.append(&mut chunk);
+    }
+    
+    log::debug!("Calculating MD5 hash of {url}");
+
+    // Calculate MD5 hash of the downloaded file
+    let downloaded_file_hash = format!("{:x}", md5::compute(
+        std::str::from_utf8(&file_bytes).unwrap()
+    ));
+
+    log::debug!("MD5 hash for the downloaded file: {downloaded_file_hash}");
+
+    if downloaded_file_hash == file_hash {
+        log::debug!("Hashes match!");
+    } else {
+        log::debug!("Hashes do not match!");
+        // Do something here...
     }
 
     log::debug!("Writing ZIP {url} ({hash}) to path");
